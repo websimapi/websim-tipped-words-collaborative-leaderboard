@@ -1,0 +1,90 @@
+{
+  "database": {
+    "schema": {
+      "comment": {
+        "id": {
+          "type": "text",
+          "description": "Comment ID from websim comments API"
+        },
+        "content": {
+          "type": "text",
+          "description": "The comment text content"
+        },
+        "author_id": {
+          "type": "text",
+          "description": "ID of the user who made the comment"
+        },
+        "author_username": {
+          "type": "text",
+          "description": "Username of the comment author"
+        },
+        "tip_amount": {
+          "type": "integer",
+          "description": "Amount of credits tipped with this comment"
+        },
+        "created_at": {
+          "type": "timestamptz",
+          "description": "When the comment was created"
+        }
+      },
+      "leaderboard_word": {
+        "id": {
+          "type": "uuid",
+          "description": "Unique identifier for the word entry"
+        },
+        "word": {
+          "type": "text",
+          "description": "The actual word added to the leaderboard"
+        },
+        "position": {
+          "type": "integer",
+          "description": "Position of this word in the story sequence"
+        },
+        "author_id": {
+          "type": "text",
+          "description": "ID of user who added this word"
+        },
+        "author_username": {
+          "type": "text",
+          "description": "Username of who added this word"
+        },
+        "cost_paid": {
+          "type": "integer",
+          "description": "How many credits this word cost"
+        },
+        "color_class": {
+          "type": "text",
+          "description": "CSS class for word color (word-free, word-golden, etc.)"
+        },
+        "tip_amount": {
+          "type": "integer",
+          "description": "The tip amount that was active when this word was added"
+        }
+      },
+      "writing_state": {
+        "id": {
+          "type": "text",
+          "description": "State identifier (always 'main')"
+        },
+        "cost_per_word": {
+          "type": "integer",
+          "description": "Current cost in credits per word"
+        },
+        "words_remaining": {
+          "type": "integer",
+          "description": "How many words can still be added at current price"
+        },
+        "last_tip_amount": {
+          "type": "integer",
+          "description": "The most recent tip that sets the current pricing"
+        },
+        "current_color_class": {
+          "type": "text",
+          "description": "CSS class for current word coloring"
+        }
+      }
+    },
+    "instructions": "This is a collaborative writing system where users comment with tips to set the price for the next 10 words. Words are colored based on their cost: free words are green, bronze (1-49 credits) are orange, silver (50-99 credits) are gray, and golden (100+ credits) are yellow with shimmer animation. The writing_state collection tracks the current pricing and remaining words."
+  }
+}
+
