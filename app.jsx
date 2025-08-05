@@ -6,7 +6,6 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 const room = new WebsimSocket();
 function App() {
-  const [currentWord, setCurrentWord] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const { data: comments, loading: commentsLoading } = useQuery(room.collection("comment"));
   const { data: leaderboardWords, loading: wordsLoading } = useQuery(room.collection("leaderboard_word"));
@@ -46,28 +45,6 @@ function App() {
   const getCurrentCost = () => {
     return writingState?.cost_per_word || 0;
   };
-  const handleAddWord = async () => {
-    if (!currentWord.trim() || !canAddWord() || !currentUser) return;
-    const wordCount = sortedWords.length;
-    const colorClass = writingState?.current_color_class || "word-free";
-    await room.collection("leaderboard_word").upsert({
-      word: currentWord.trim(),
-      position: wordCount,
-      author_id: currentUser.id,
-      author_username: currentUser.username,
-      cost_paid: writingState?.cost_per_word || 0,
-      color_class: colorClass,
-      tip_amount: writingState?.last_tip_amount || 0
-    });
-    await room.collection("writing_state").upsert({
-      id: "main",
-      cost_per_word: writingState?.cost_per_word || 0,
-      words_remaining: (writingState?.words_remaining || 1) - 1,
-      last_tip_amount: writingState?.last_tip_amount || 0,
-      current_color_class: writingState?.current_color_class || "word-free"
-    });
-    setCurrentWord("");
-  };
   const handleComment = async (tipAmount = 0) => {
     const commentText = tipAmount > 0 ? `Setting next 10 words to ${tipAmount} credits each! \u{1F4B0}` : "Next 10 words are FREE! \u{1F389}";
     try {
@@ -99,59 +76,71 @@ function App() {
         last_tip_amount: tipAmount,
         current_color_class: newColorClass
       });
+      if (writingState && writingState.words_remaining > 0) {
+        const words = comment.raw_content.split(/\s+/).filter(
+          (word) => word.trim() !== "" && !word.includes("\u{1F4B0}") && !word.includes("\u{1F389}") && !/^\d+$/.test(word) && // exclude pure numbers
+          word.length > 1
+          // exclude single characters
+        );
+        const wordsToAdd = words.slice(0, writingState.words_remaining);
+        const currentWordCount = sortedWords.length;
+        for (let i = 0; i < wordsToAdd.length; i++) {
+          await room.collection("leaderboard_word").upsert({
+            word: wordsToAdd[i],
+            position: currentWordCount + i,
+            author_id: comment.author.id,
+            author_username: comment.author.username,
+            cost_paid: writingState.cost_per_word,
+            color_class: writingState.current_color_class,
+            tip_amount: writingState.last_tip_amount
+          });
+        }
+        const remainingWords = Math.max(0, writingState.words_remaining - wordsToAdd.length);
+        await room.collection("writing_state").upsert({
+          id: "main",
+          cost_per_word: writingState.cost_per_word,
+          words_remaining: remainingWords,
+          last_tip_amount: writingState.last_tip_amount,
+          current_color_class: writingState.current_color_class
+        });
+      }
     };
     window.websim.addEventListener("comment:created", handleNewComment);
     return () => {
     };
-  }, []);
+  }, [writingState, sortedWords]);
   if (commentsLoading || wordsLoading || stateLoading) {
     return /* @__PURE__ */ jsxDEV("div", { className: "min-h-screen flex items-center justify-center", children: /* @__PURE__ */ jsxDEV("div", { className: "text-white text-xl", children: "Loading collaborative leaderboard..." }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 139,
+      lineNumber: 145,
       columnNumber: 17
     }, this) }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 138,
+      lineNumber: 144,
       columnNumber: 13
     }, this);
   }
-  return /* @__PURE__ */ jsxDEV("div", { className: "min-h-screen p-6", children: /* @__PURE__ */ jsxDEV("div", { className: "max-w-6xl mx-auto", children: [
-    /* @__PURE__ */ jsxDEV("h1", { className: "text-4xl font-bold text-white text-center mb-8", children: "Tipped Words Leaderboard" }, void 0, false, {
+  return /* @__PURE__ */ jsxDEV("div", { className: "min-h-screen p-4 md:p-6", children: /* @__PURE__ */ jsxDEV("div", { className: "max-w-6xl mx-auto", children: [
+    /* @__PURE__ */ jsxDEV("h1", { className: "text-2xl md:text-4xl font-bold text-white text-center mb-6 md:mb-8", children: "Tipped Words Leaderboard" }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 147,
+      lineNumber: 153,
       columnNumber: 17
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "grid lg:grid-cols-3 gap-8", children: [
-      /* @__PURE__ */ jsxDEV("div", { className: "lg:col-span-2", children: /* @__PURE__ */ jsxDEV("div", { className: "leaderboard-container p-8", children: [
-        /* @__PURE__ */ jsxDEV("h2", { className: "text-2xl font-bold mb-6", children: "Collaborative Story" }, void 0, false, {
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col lg:flex-row gap-6 lg:gap-8", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "w-full lg:w-2/3", children: /* @__PURE__ */ jsxDEV("div", { className: "leaderboard-container p-4 md:p-8", children: [
+        /* @__PURE__ */ jsxDEV("h2", { className: "text-xl md:text-2xl font-bold mb-4 md:mb-6", children: "Collaborative Story" }, void 0, false, {
           fileName: "<stdin>",
-          lineNumber: 155,
+          lineNumber: 161,
           columnNumber: 29
         }, this),
-        /* @__PURE__ */ jsxDEV("div", { className: "mb-6 p-4 status-indicator", children: [
-          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-center mb-4", children: [
-            /* @__PURE__ */ jsxDEV("span", { className: "font-semibold", children: "Words Remaining:" }, void 0, false, {
-              fileName: "<stdin>",
-              lineNumber: 159,
-              columnNumber: 37
-            }, this),
-            /* @__PURE__ */ jsxDEV("span", { className: "text-xl font-bold text-blue-600", children: writingState?.words_remaining || 0 }, void 0, false, {
-              fileName: "<stdin>",
-              lineNumber: 160,
-              columnNumber: 37
-            }, this)
-          ] }, void 0, true, {
-            fileName: "<stdin>",
-            lineNumber: 158,
-            columnNumber: 33
-          }, this),
-          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-center", children: [
-            /* @__PURE__ */ jsxDEV("span", { className: "font-semibold", children: "Cost per Word:" }, void 0, false, {
+        /* @__PURE__ */ jsxDEV("div", { className: "mb-4 md:mb-6 p-3 md:p-4 status-indicator", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-center mb-2 md:mb-4", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-sm md:text-base", children: "Words Remaining:" }, void 0, false, {
               fileName: "<stdin>",
               lineNumber: 165,
               columnNumber: 37
             }, this),
-            /* @__PURE__ */ jsxDEV("span", { className: "text-xl font-bold", children: getCurrentCost() === 0 ? "FREE" : `${getCurrentCost()} credits` }, void 0, false, {
+            /* @__PURE__ */ jsxDEV("span", { className: "text-lg md:text-xl font-bold text-blue-600", children: writingState?.words_remaining || 0 }, void 0, false, {
               fileName: "<stdin>",
               lineNumber: 166,
               columnNumber: 37
@@ -160,16 +149,32 @@ function App() {
             fileName: "<stdin>",
             lineNumber: 164,
             columnNumber: 33
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-center", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-sm md:text-base", children: "Cost per Word:" }, void 0, false, {
+              fileName: "<stdin>",
+              lineNumber: 171,
+              columnNumber: 37
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-lg md:text-xl font-bold", children: getCurrentCost() === 0 ? "FREE" : `${getCurrentCost()} credits` }, void 0, false, {
+              fileName: "<stdin>",
+              lineNumber: 172,
+              columnNumber: 37
+            }, this)
+          ] }, void 0, true, {
+            fileName: "<stdin>",
+            lineNumber: 170,
+            columnNumber: 33
           }, this)
         ] }, void 0, true, {
           fileName: "<stdin>",
-          lineNumber: 157,
+          lineNumber: 163,
           columnNumber: 29
         }, this),
-        /* @__PURE__ */ jsxDEV("div", { className: "bg-gray-50 p-6 rounded-lg mb-6 min-h-[200px]", children: /* @__PURE__ */ jsxDEV("div", { className: "text-lg leading-relaxed", children: sortedWords.map((word, index) => /* @__PURE__ */ jsxDEV(
+        /* @__PURE__ */ jsxDEV("div", { className: "bg-gray-50 p-4 md:p-6 rounded-lg mb-4 md:mb-6 min-h-[150px] md:min-h-[200px]", children: /* @__PURE__ */ jsxDEV("div", { className: "text-base md:text-lg leading-relaxed", children: sortedWords.map((word, index) => /* @__PURE__ */ jsxDEV(
           "span",
           {
-            className: `${word.color_class} mr-2 inline-block`,
+            className: `${word.color_class} mr-2 inline-block mb-1`,
             title: `By ${word.author_username} (${word.cost_paid} credits)`,
             children: word.word
           },
@@ -177,90 +182,90 @@ function App() {
           false,
           {
             fileName: "<stdin>",
-            lineNumber: 175,
+            lineNumber: 181,
             columnNumber: 41
           },
           this
         )) }, void 0, false, {
           fileName: "<stdin>",
-          lineNumber: 173,
+          lineNumber: 179,
           columnNumber: 33
         }, this) }, void 0, false, {
           fileName: "<stdin>",
-          lineNumber: 172,
+          lineNumber: 178,
           columnNumber: 29
         }, this),
-        /* @__PURE__ */ jsxDEV("div", { className: "flex gap-3", children: [
-          /* @__PURE__ */ jsxDEV(
-            "input",
-            {
-              type: "text",
-              value: currentWord,
-              onChange: (e) => setCurrentWord(e.target.value),
-              placeholder: "Type your word...",
-              className: "flex-1 px-4 py-3 word-input",
-              onKeyPress: (e) => e.key === "Enter" && handleAddWord(),
-              disabled: !canAddWord()
-            },
-            void 0,
-            false,
-            {
-              fileName: "<stdin>",
-              lineNumber: 187,
-              columnNumber: 33
-            },
-            this
-          ),
-          /* @__PURE__ */ jsxDEV(
-            "button",
-            {
-              onClick: handleAddWord,
-              disabled: !canAddWord() || !currentWord.trim(),
-              className: "px-6 py-3 text-white add-word-btn",
-              children: "Add Word"
-            },
-            void 0,
-            false,
-            {
-              fileName: "<stdin>",
-              lineNumber: 196,
-              columnNumber: 33
-            },
-            this
-          )
+        /* @__PURE__ */ jsxDEV("div", { className: "bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500", children: /* @__PURE__ */ jsxDEV("p", { className: "text-blue-800 text-sm md:text-base", children: [
+          /* @__PURE__ */ jsxDEV("strong", { children: "How it works:" }, void 0, false, {
+            fileName: "<stdin>",
+            lineNumber: 194,
+            columnNumber: 37
+          }, this),
+          " Words are automatically extracted from comments! Comment with text to add words to the story. Use the buttons below to set pricing for the next 10 words."
         ] }, void 0, true, {
           fileName: "<stdin>",
-          lineNumber: 186,
-          columnNumber: 29
-        }, this),
-        !canAddWord() && /* @__PURE__ */ jsxDEV("p", { className: "text-red-600 mt-2 text-center", children: "No words remaining! Someone needs to comment to unlock more words." }, void 0, false, {
-          fileName: "<stdin>",
-          lineNumber: 206,
+          lineNumber: 193,
           columnNumber: 33
+        }, this) }, void 0, false, {
+          fileName: "<stdin>",
+          lineNumber: 192,
+          columnNumber: 29
         }, this)
       ] }, void 0, true, {
         fileName: "<stdin>",
-        lineNumber: 154,
+        lineNumber: 160,
         columnNumber: 25
       }, this) }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 153,
+        lineNumber: 159,
         columnNumber: 21
       }, this),
-      /* @__PURE__ */ jsxDEV("div", { className: "space-y-6", children: [
-        /* @__PURE__ */ jsxDEV("div", { className: "comment-card p-6", children: [
-          /* @__PURE__ */ jsxDEV("h3", { className: "text-xl font-bold mb-4", children: "Set Word Pricing" }, void 0, false, {
+      /* @__PURE__ */ jsxDEV("div", { className: "w-full lg:w-1/3 space-y-4 md:space-y-6", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "comment-card p-4 md:p-6", children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-lg md:text-xl font-bold mb-3 md:mb-4", children: "Set Word Pricing" }, void 0, false, {
             fileName: "<stdin>",
-            lineNumber: 216,
+            lineNumber: 204,
             columnNumber: 29
           }, this),
-          /* @__PURE__ */ jsxDEV("div", { className: "space-y-3", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-3", children: [
             /* @__PURE__ */ jsxDEV(
               "button",
               {
                 onClick: () => handleComment(0),
-                className: "w-full px-4 py-3 comment-btn text-white",
+                className: "w-full px-3 md:px-4 py-2 md:py-3 comment-btn text-white text-sm md:text-base",
                 children: "Make Next 10 Words FREE"
+              },
+              void 0,
+              false,
+              {
+                fileName: "<stdin>",
+                lineNumber: 206,
+                columnNumber: 33
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: () => handleComment(25),
+                className: "w-full px-3 md:px-4 py-2 md:py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors text-sm md:text-base",
+                children: "25 Credits per Word"
+              },
+              void 0,
+              false,
+              {
+                fileName: "<stdin>",
+                lineNumber: 212,
+                columnNumber: 33
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                onClick: () => handleComment(50),
+                className: "w-full px-3 md:px-4 py-2 md:py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors text-sm md:text-base",
+                children: "50 Credits per Word"
               },
               void 0,
               false,
@@ -274,9 +279,9 @@ function App() {
             /* @__PURE__ */ jsxDEV(
               "button",
               {
-                onClick: () => handleComment(25),
-                className: "w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors",
-                children: "25 Credits per Word"
+                onClick: () => handleComment(100),
+                className: "w-full px-3 md:px-4 py-2 md:py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold transition-colors text-sm md:text-base",
+                children: "100 Credits per Word (Golden!)"
               },
               void 0,
               false,
@@ -286,95 +291,63 @@ function App() {
                 columnNumber: 33
               },
               this
-            ),
-            /* @__PURE__ */ jsxDEV(
-              "button",
-              {
-                onClick: () => handleComment(50),
-                className: "w-full px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors",
-                children: "50 Credits per Word"
-              },
-              void 0,
-              false,
-              {
-                fileName: "<stdin>",
-                lineNumber: 230,
-                columnNumber: 33
-              },
-              this
-            ),
-            /* @__PURE__ */ jsxDEV(
-              "button",
-              {
-                onClick: () => handleComment(100),
-                className: "w-full px-4 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold transition-colors",
-                children: "100 Credits per Word (Golden!)"
-              },
-              void 0,
-              false,
-              {
-                fileName: "<stdin>",
-                lineNumber: 236,
-                columnNumber: 33
-              },
-              this
             )
           ] }, void 0, true, {
             fileName: "<stdin>",
-            lineNumber: 217,
+            lineNumber: 205,
             columnNumber: 29
           }, this)
         ] }, void 0, true, {
           fileName: "<stdin>",
-          lineNumber: 215,
+          lineNumber: 203,
           columnNumber: 25
         }, this),
-        /* @__PURE__ */ jsxDEV("div", { className: "comment-card p-6", children: [
-          /* @__PURE__ */ jsxDEV("h3", { className: "text-xl font-bold mb-4", children: "Recent Comments" }, void 0, false, {
+        /* @__PURE__ */ jsxDEV("div", { className: "comment-card p-4 md:p-6", children: [
+          /* @__PURE__ */ jsxDEV("h3", { className: "text-lg md:text-xl font-bold mb-3 md:mb-4", children: "Recent Comments" }, void 0, false, {
             fileName: "<stdin>",
-            lineNumber: 246,
+            lineNumber: 234,
             columnNumber: 29
           }, this),
-          /* @__PURE__ */ jsxDEV("div", { className: "space-y-4 max-h-96 overflow-y-auto", children: sortedComments.map((comment) => /* @__PURE__ */ jsxDEV("div", { className: "border-b pb-3 last:border-b-0", children: [
-            /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 mb-2", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-3 md:space-y-4 max-h-64 md:max-h-96 overflow-y-auto", children: sortedComments.map((comment) => /* @__PURE__ */ jsxDEV("div", { className: "border-b pb-2 md:pb-3 last:border-b-0", children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 mb-1 md:mb-2", children: [
               /* @__PURE__ */ jsxDEV(
                 "img",
                 {
                   src: `https://images.websim.com/avatar/${comment.author_username}`,
                   alt: comment.author_username,
-                  className: "w-6 h-6 rounded-full"
+                  className: "w-5 h-5 md:w-6 md:h-6 rounded-full"
                 },
                 void 0,
                 false,
                 {
                   fileName: "<stdin>",
-                  lineNumber: 251,
+                  lineNumber: 239,
                   columnNumber: 45
                 },
                 this
               ),
-              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-sm", children: comment.author_username }, void 0, false, {
+              /* @__PURE__ */ jsxDEV("span", { className: "font-semibold text-xs md:text-sm", children: comment.author_username }, void 0, false, {
                 fileName: "<stdin>",
-                lineNumber: 256,
+                lineNumber: 244,
                 columnNumber: 45
               }, this),
-              comment.tip_amount > 0 && /* @__PURE__ */ jsxDEV("span", { className: "tip-badge px-2 py-1 text-xs", children: [
+              comment.tip_amount > 0 && /* @__PURE__ */ jsxDEV("span", { className: "tip-badge px-1 md:px-2 py-1 text-xs", children: [
                 comment.tip_amount,
                 " credits"
               ] }, void 0, true, {
                 fileName: "<stdin>",
-                lineNumber: 258,
+                lineNumber: 246,
                 columnNumber: 49
               }, this)
             ] }, void 0, true, {
               fileName: "<stdin>",
-              lineNumber: 250,
+              lineNumber: 238,
               columnNumber: 41
             }, this),
             /* @__PURE__ */ jsxDEV(
               "div",
               {
-                className: "text-sm text-gray-700",
+                className: "text-xs md:text-sm text-gray-700",
                 dangerouslySetInnerHTML: {
                   __html: DOMPurify.sanitize(marked.parse(comment.content))
                 }
@@ -383,48 +356,48 @@ function App() {
               false,
               {
                 fileName: "<stdin>",
-                lineNumber: 263,
+                lineNumber: 251,
                 columnNumber: 41
               },
               this
             )
           ] }, comment.id, true, {
             fileName: "<stdin>",
-            lineNumber: 249,
+            lineNumber: 237,
             columnNumber: 37
           }, this)) }, void 0, false, {
             fileName: "<stdin>",
-            lineNumber: 247,
+            lineNumber: 235,
             columnNumber: 29
           }, this)
         ] }, void 0, true, {
           fileName: "<stdin>",
-          lineNumber: 245,
+          lineNumber: 233,
           columnNumber: 25
         }, this)
       ] }, void 0, true, {
         fileName: "<stdin>",
-        lineNumber: 214,
+        lineNumber: 202,
         columnNumber: 21
       }, this)
     ] }, void 0, true, {
       fileName: "<stdin>",
-      lineNumber: 151,
+      lineNumber: 157,
       columnNumber: 17
     }, this)
   ] }, void 0, true, {
     fileName: "<stdin>",
-    lineNumber: 146,
+    lineNumber: 152,
     columnNumber: 13
   }, this) }, void 0, false, {
     fileName: "<stdin>",
-    lineNumber: 145,
+    lineNumber: 151,
     columnNumber: 9
   }, this);
 }
 const root = createRoot(document.getElementById("root"));
 root.render(/* @__PURE__ */ jsxDEV(App, {}, void 0, false, {
   fileName: "<stdin>",
-  lineNumber: 281,
+  lineNumber: 269,
   columnNumber: 13
 }));
