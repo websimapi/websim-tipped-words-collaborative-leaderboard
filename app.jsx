@@ -349,7 +349,7 @@ function App() {
               {
                 className: "text-xs md:text-sm text-gray-700",
                 dangerouslySetInnerHTML: {
-                  __html: DOMPurify.sanitize(marked.parse(comment.content))
+                  __html: DOMPurify.sanitize(marked.parse(comment.content || ""))
                 }
               },
               void 0,
